@@ -1,6 +1,6 @@
 # 💹 FinFlow — Finance Dashboard
 
-A clean, interactive, and fully responsive Finance Dashboard built with **vanilla HTML, CSS, and JavaScript** — no frameworks, no build tools, just open and run.
+A clean, interactive, and fully responsive Finance Dashboard built with **HTML, CSS, and JavaScript** — no frameworks, no build tools, just open and run.
 
 ---
 
