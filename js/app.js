@@ -696,6 +696,212 @@ window.exportJSON = function() {
   showToast('JSON exported ✓', 'success');
 };
 
+window.exportPDF = function() {
+  try {
+    const { jsPDF } = window.jspdf;
+    const filtered = getFilteredTransactions();
+    
+    if (filtered.length === 0) {
+      showToast('No transactions to export', 'error');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPos = 10;
+    
+    // ═══ HEADER SECTION ═══
+    doc.setFillColor(52, 211, 153);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont(undefined, 'bold');
+    doc.text('FinFlow', 15, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Financial Transaction Report', 15, 26);
+    
+    doc.setFontSize(8);
+    doc.text(`Generated: ${new Date().toLocaleDateString()} | ${new Date().toLocaleTimeString()}`, pageWidth - 15, 26, { align: 'right' });
+    
+    doc.setTextColor(0, 0, 0);
+    yPos = 42;
+    
+    // ═══ SUMMARY CARDS ═══
+    const stats = calculateSummaryStats(filtered);
+    const cardWidth = 45;
+    const cardHeight = 25;
+    const cardX = [12, 65, 118];
+    
+    // Income Card
+    doc.setFillColor(240, 253, 250);
+    doc.setDrawColor(52, 211, 153);
+    doc.rect(cardX[0], yPos, cardWidth, cardHeight, 'FD');
+    doc.setTextColor(52, 211, 153);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9);
+    doc.text('TOTAL INCOME', cardX[0] + 3, yPos + 6);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text(formatCurrencyPDF(stats.totalIncome), cardX[0] + 3, yPos + 18);
+    
+    // Expense Card
+    doc.setFillColor(255, 243, 240);
+    doc.setDrawColor(248, 113, 113);
+    doc.rect(cardX[1], yPos, cardWidth, cardHeight, 'FD');
+    doc.setTextColor(248, 113, 113);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9);
+    doc.text('TOTAL EXPENSES', cardX[1] + 3, yPos + 6);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text(formatCurrencyPDF(stats.totalExpenses), cardX[1] + 3, yPos + 18);
+    
+    // Balance Card
+    doc.setFillColor(240, 251, 255);
+    doc.setDrawColor(59, 130, 246);
+    doc.rect(cardX[2], yPos, cardWidth, cardHeight, 'FD');
+    doc.setTextColor(59, 130, 246);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9);
+    doc.text('NET BALANCE', cardX[2] + 3, yPos + 6);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text(formatCurrencyPDF(stats.balance), cardX[2] + 3, yPos + 18);
+    
+    yPos += 35;
+    
+    // ═══ CATEGORY BREAKDOWN ═══
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text('Category Breakdown', 15, yPos);
+    yPos += 6;
+    
+    const catStats = {};
+    filtered.forEach(t => {
+      catStats[t.category] = (catStats[t.category] || 0) + t.amount;
+    });
+    
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+    const cats = Object.entries(catStats).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    
+    cats.forEach((cat, idx) => {
+      const pct = ((cat[1] / filtered.reduce((s, t) => s + t.amount, 0)) * 100).toFixed(1);
+      doc.text(`• ${cat[0]}`, 15, yPos);
+      doc.text(`${formatCurrencyPDF(cat[1])} (${pct}%)`, 80, yPos);
+      yPos += 4;
+    });
+    
+    yPos += 4;
+    
+    // ═══ TRANSACTIONS TABLE ═══
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(11);
+    doc.text('Transaction Details', 15, yPos);
+    yPos += 7;
+    
+    // Table Header
+    doc.setFillColor(52, 211, 153);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(8);
+    
+    const colX = [15, 40, 85, 125, 155];
+    const colW = [20, 40, 35, 25, 35];
+    
+    doc.rect(15, yPos - 4, 180, 5, 'F');
+    doc.text('Date', colX[0], yPos);
+    doc.text('Description', colX[1], yPos);
+    doc.text('Category', colX[2], yPos);
+    doc.text('Type', colX[3], yPos);
+    doc.text('Amount', colX[4], yPos);
+    
+    yPos += 6;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    
+    // Table Rows with alternating colors
+    filtered.forEach((t, idx) => {
+      if (yPos > pageHeight - 15) {
+        doc.addPage();
+        yPos = 10;
+      }
+      
+      // Alternating row background
+      if (idx % 2 === 0) {
+        doc.setFillColor(245, 245, 245);
+        doc.rect(15, yPos - 3, 180, 4.5, 'F');
+      }
+      
+      // Color code by type
+      if (t.type === 'income') {
+        doc.setTextColor(34, 197, 94);
+      } else {
+        doc.setTextColor(220, 38, 38);
+      }
+      
+      doc.setFontSize(8);
+      doc.text(t.date, colX[0], yPos);
+      doc.setTextColor(0, 0, 0);
+      doc.text(t.description.substring(0, 20), colX[1], yPos);
+      doc.text(t.category.substring(0, 12), colX[2], yPos);
+      doc.text(t.type, colX[3], yPos);
+      
+      if (t.type === 'income') {
+        doc.setTextColor(34, 197, 94);
+      } else {
+        doc.setTextColor(220, 38, 38);
+      }
+      doc.text(formatCurrencyPDF(t.amount), colX[4], yPos);
+      
+      yPos += 4.5;
+    });
+    
+    // ═══ FOOTER ═══
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(7);
+    doc.setFont(undefined, 'normal');
+    doc.text('FinFlow © 2026 - Your Financial Companion', pageWidth / 2, pageHeight - 8, { align: 'center' });
+    
+    doc.save('finflow-transactions.pdf');
+    showToast('PDF exported ✓', 'success');
+  } catch (error) {
+    console.error('PDF export error:', error);
+    showToast('Error exporting PDF', 'error');
+  }
+};
+
+function calculateSummaryStats(transactions) {
+  const stats = {
+    totalIncome: 0,
+    totalExpenses: 0,
+    balance: 0
+  };
+  
+  transactions.forEach(t => {
+    if (t.type === 'income') {
+      stats.totalIncome += t.amount;
+    } else {
+      stats.totalExpenses += t.amount;
+    }
+  });
+  
+  stats.balance = stats.totalIncome - stats.totalExpenses;
+  return stats;
+}
+
+function formatCurrencyPDF(n) {
+  return 'Rs. ' + Math.abs(n).toLocaleString('en-IN');
+}
+
 function downloadFile(content, filename, mime) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));

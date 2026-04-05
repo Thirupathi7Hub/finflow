@@ -368,11 +368,6 @@ body {
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
-.stat-card.balance::after  { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-.stat-card.income::after   { background: linear-gradient(90deg, var(--green), var(--teal)); }
-.stat-card.expense::after  { background: linear-gradient(90deg, var(--red), var(--pink)); }
-.stat-card.savings::after  { background: linear-gradient(90deg, var(--amber), var(--orange)); }
-
 .stat-icon {
   width: 40px; height: 40px;
   border-radius: 12px;
